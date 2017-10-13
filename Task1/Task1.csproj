@@ -42,12 +42,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EventArgs\DirectoryFindedEventArgs.cs" />
-    <Compile Include="EventArgs\ElementFindedEventArgs.cs" />
-    <Compile Include="EventArgs\FileFindedEventArgs.cs" />
+    <Compile Include="EventArgs\ItemFindedEventArgs.cs" />
     <Compile Include="FileSystemVisitor.cs" />
-    <Compile Include="EventArgs\FilteredDirectoryFindedEventArgs.cs" />
-    <Compile Include="EventArgs\FilteredFileFindedEventArgs.cs" />
     <Compile Include="EventArgs\FinishEventArgs.cs" />
     <Compile Include="Mainprg.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

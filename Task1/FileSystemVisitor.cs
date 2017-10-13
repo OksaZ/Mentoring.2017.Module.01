@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security;
 using Task1.EventArgs;
 
 namespace Task1
@@ -22,10 +21,10 @@ namespace Task1
 
         public event EventHandler<StartEventArgs> Start;
         public event EventHandler<FinishEventArgs> Finish;
-        public event EventHandler<FileFindedEventArgs> FileFinded;
-        public event EventHandler<FilteredFileFindedEventArgs> FilteredFileFinded;
-        public event EventHandler<DirectoryFindedEventArgs> DirectoryFinded;
-        public event EventHandler<FilteredDirectoryFindedEventArgs> FilteredDirectoryFinded;
+        public event EventHandler<ItemFindedEventArgs<FileInfo>> FileFinded;
+        public event EventHandler<ItemFindedEventArgs<FileInfo>> FilteredFileFinded;
+        public event EventHandler<ItemFindedEventArgs<DirectoryInfo>> DirectoryFinded;
+        public event EventHandler<ItemFindedEventArgs<DirectoryInfo>> FilteredDirectoryFinded;
 
         public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
         {
@@ -43,8 +42,10 @@ namespace Task1
             {
                 FileInfo file = fileSystemInfo as FileInfo;
                 DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
-                ElementFindedEventArgs args = OnFileFinded(file);
-                args = OnDirectoryFinded(dir) ?? args;
+                ItemFindedEventArgs<FileInfo> args =
+                    OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FileFinded,
+                        new ItemFindedEventArgs<FileInfo> {FindedItem = file});
+                //args = OnDirectoryFinded(dir) ?? args;
 
                 if (args != null)
                 {
@@ -59,8 +60,9 @@ namespace Task1
                 }
                 if (_filter == null || _filter(fileSystemInfo))
                 {
-                    args = OnFilteredFileFinded(file);
-                    args = OnFilteredDirectoryFinded(dir) ?? args;
+                    args = OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FilteredFileFinded,
+                        new ItemFindedEventArgs<FileInfo> {FindedItem = file});
+                    //args = OnFilteredDirectoryFinded(dir) ?? args;
                     if (args != null)
                     {
                         if (args.IsRemovedFromResults)
@@ -85,6 +87,45 @@ namespace Task1
             }
         }
 
+        //protected void ProcessFindedItem()
+        //{
+        //    ItemFindedEventArgs<FileInfo> args =
+        //        OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FileFinded,
+        //            new ItemFindedEventArgs<FileInfo> { FindedItem = file });
+        //    //args = OnDirectoryFinded(dir) ?? args;
+
+        //    if (args != null)
+        //    {
+        //        if (args.IsRemovedFromResults)
+        //        {
+        //            continue;
+        //        }
+        //        if (args.IsSearchStoped)
+        //        {
+        //            yield break;
+        //        }
+        //    }
+        //    if (_filter == null || _filter(fileSystemInfo))
+        //    {
+        //        args = OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FilteredFileFinded,
+        //            new ItemFindedEventArgs<FileInfo> { FindedItem = file });
+        //        //args = OnFilteredDirectoryFinded(dir) ?? args;
+        //        if (args != null)
+        //        {
+        //            if (args.IsRemovedFromResults)
+        //            {
+        //                continue;
+        //            }
+        //            if (args.IsSearchStoped)
+        //            {
+        //                yield break;
+        //            }
+        //        }
+        //        yield return fileSystemInfo;
+        //    }
+        //}
+
+
         protected void OnStart()
         {
             Start?.Invoke(this, new StartEventArgs());
@@ -95,67 +136,16 @@ namespace Task1
             Finish?.Invoke(this, new FinishEventArgs());
         }
 
-        protected FileFindedEventArgs OnFileFinded(FileSystemInfo file)
+        protected TArgs OnItemFinded<TArgs, TItem>(EventHandler<TArgs> onFinded, TArgs args)
+            where TItem: FileSystemInfo
+            where TArgs: ItemFindedEventArgs<TItem>
         {
-            if (file == null)
+            if (args.FindedItem == null)
             {
                 return null;
             }
 
-            var args = new FileFindedEventArgs
-            {
-                File = file
-            };
-
-            FileFinded?.Invoke(this, args);
-            return args;
-        }
-
-        protected FilteredFileFindedEventArgs OnFilteredFileFinded(FileSystemInfo filteredFile)
-        {
-            if (filteredFile == null)
-            {
-                return null;
-            }
-
-            var args = new FilteredFileFindedEventArgs
-            {
-                FilteredFile = filteredFile
-            };
-
-            FilteredFileFinded?.Invoke(this, args);
-            return args;
-        }
-
-        protected DirectoryFindedEventArgs OnDirectoryFinded(DirectoryInfo directory)
-        {
-            if (directory == null)
-            {
-                return null;
-            }
-
-            var args = new DirectoryFindedEventArgs
-            {
-                Directory = directory
-            };
-
-            DirectoryFinded?.Invoke(this, args);
-            return args;
-        }
-
-        protected FilteredDirectoryFindedEventArgs OnFilteredDirectoryFinded(DirectoryInfo filteredDirectory)
-        {
-            if (filteredDirectory == null)
-            {
-                return null;
-            }
-
-            var args = new FilteredDirectoryFindedEventArgs
-            {
-                FilteredDirectory = filteredDirectory
-            };
-
-            FilteredDirectoryFinded?.Invoke(this, args);
+            onFinded?.Invoke(this, args);
             return args;
         }
     }

@@ -13,7 +13,7 @@ namespace Task1
     {
         static void Main(string[] args)
         {
-            string startPoint = "D:\\";
+            string startPoint = "D:\\LINQPad5";
             var visitor = new FileSystemVisitor(startPoint, (info) => info.Name.Length < 12);
             visitor.Start += (s, e) =>
             {
@@ -27,7 +27,7 @@ namespace Task1
 
             visitor.FileFinded += (s, e) =>
             {
-                // Console.WriteLine("\tFounded file: " + e.File.Name);
+                Console.WriteLine("\tFounded file: " + e.FindedItem.Name);
             };
 
             visitor.DirectoryFinded += (s, e) =>
@@ -37,7 +37,7 @@ namespace Task1
 
             visitor.FilteredFileFinded += (s, e) =>
             {
-                Console.WriteLine("Founded filtered file: " + e.FilteredFile.Name);
+                Console.WriteLine("Founded filtered file: " + e.FindedItem.Name);
             };
 
             visitor.FilteredDirectoryFinded += (s, e) =>
