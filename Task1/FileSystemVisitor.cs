@@ -29,7 +29,6 @@ namespace Task1
         public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
         {
             OnEvent(Start, new StartEventArgs());
-            IEnumerator<FileSystemInfo> fileSystemInfos = GetFileSystemInfoSequence(_startDirectory).GetEnumerator();
             foreach (var fileSystemInfo in GetFileSystemInfoSequence(_startDirectory))
             {
                 yield return fileSystemInfo;
