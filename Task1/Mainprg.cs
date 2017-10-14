@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Task1
 {
@@ -13,8 +7,8 @@ namespace Task1
     {
         static void Main(string[] args)
         {
-            string startPoint = "D:\\LINQPad5";
-            var visitor = new FileSystemVisitor(startPoint, (info) => info.Name.Length < 12);
+            string startPoint = "D:\\Худ. Книги";
+            var visitor = new FileSystemVisitor(startPoint, (info) => info is DirectoryInfo);
             visitor.Start += (s, e) =>
             {
                 Console.WriteLine("Iteration started");
@@ -27,7 +21,7 @@ namespace Task1
 
             visitor.FileFinded += (s, e) =>
             {
-                Console.WriteLine("\tFounded file: " + e.FindedItem.Name);
+                //Console.WriteLine("\tFounded file: " + e.FindedItem.Name);
             };
 
             visitor.DirectoryFinded += (s, e) =>
@@ -42,7 +36,7 @@ namespace Task1
 
             visitor.FilteredDirectoryFinded += (s, e) =>
             {
-                //Console.WriteLine("Founded filtered directory: " + e.FilteredDirectory.Name);
+                Console.WriteLine("Founded filtered directory: " + e.FindedItem.Name);
             };
 
             foreach (var fileSysInfo in visitor.GetFileSystemInfoSequence())

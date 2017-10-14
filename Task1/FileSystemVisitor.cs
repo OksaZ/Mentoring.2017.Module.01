@@ -28,12 +28,13 @@ namespace Task1
 
         public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
         {
-            OnStart();
+            OnEvent(Start, new StartEventArgs());
+            IEnumerator<FileSystemInfo> fileSystemInfos = GetFileSystemInfoSequence(_startDirectory).GetEnumerator();
             foreach (var fileSystemInfo in GetFileSystemInfoSequence(_startDirectory))
             {
                 yield return fileSystemInfo;
             }
-            OnFinish();
+            OnEvent(Finish, new FinishEventArgs());
         }
 
         private IEnumerable<FileSystemInfo> GetFileSystemInfoSequence(DirectoryInfo directory)
@@ -41,15 +42,11 @@ namespace Task1
             foreach (var fileSystemInfo in directory.EnumerateFileSystemInfos())
             {
                 FileInfo file = fileSystemInfo as FileInfo;
-                DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
-                ItemFindedEventArgs<FileInfo> args =
-                    OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FileFinded,
-                        new ItemFindedEventArgs<FileInfo> {FindedItem = file});
-                //args = OnDirectoryFinded(dir) ?? args;
-
-                if (args != null)
+                if (file != null)
                 {
-                    if (args.IsRemovedFromResults)
+                    ItemFindedEventArgs<FileInfo> args =
+                        ProccessItemFinded(file, FileFinded, FilteredFileFinded);
+                    if (args == null || args.IsRemovedFromResults)
                     {
                         continue;
                     }
@@ -57,26 +54,27 @@ namespace Task1
                     {
                         yield break;
                     }
+
+                    yield return file;
                 }
-                if (_filter == null || _filter(fileSystemInfo))
+
+                DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
+                if (dir != null)
                 {
-                    args = OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FilteredFileFinded,
-                        new ItemFindedEventArgs<FileInfo> {FindedItem = file});
-                    //args = OnFilteredDirectoryFinded(dir) ?? args;
-                    if (args != null)
+                    ItemFindedEventArgs<DirectoryInfo> args =
+                        ProccessItemFinded(dir, DirectoryFinded, FilteredDirectoryFinded);
+                    if (args == null || args.IsRemovedFromResults)
                     {
-                        if (args.IsRemovedFromResults)
-                        {
-                            continue;
-                        }
-                        if (args.IsSearchStoped)
-                        {
-                            yield break;
-                        }
+                        continue;
                     }
-                    yield return fileSystemInfo;
+                    if (args.IsSearchStoped)
+                    {
+                        yield break;
+                    }
+
+                    yield return dir;
                 }
-                
+
                 if (dir != null)
                 {
                     foreach (var innerDirectoryFileSystemInfo in GetFileSystemInfoSequence(dir))
@@ -87,66 +85,42 @@ namespace Task1
             }
         }
 
-        //protected void ProcessFindedItem()
-        //{
-        //    ItemFindedEventArgs<FileInfo> args =
-        //        OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FileFinded,
-        //            new ItemFindedEventArgs<FileInfo> { FindedItem = file });
-        //    //args = OnDirectoryFinded(dir) ?? args;
-
-        //    if (args != null)
-        //    {
-        //        if (args.IsRemovedFromResults)
-        //        {
-        //            continue;
-        //        }
-        //        if (args.IsSearchStoped)
-        //        {
-        //            yield break;
-        //        }
-        //    }
-        //    if (_filter == null || _filter(fileSystemInfo))
-        //    {
-        //        args = OnItemFinded<ItemFindedEventArgs<FileInfo>, FileInfo>(FilteredFileFinded,
-        //            new ItemFindedEventArgs<FileInfo> { FindedItem = file });
-        //        //args = OnFilteredDirectoryFinded(dir) ?? args;
-        //        if (args != null)
-        //        {
-        //            if (args.IsRemovedFromResults)
-        //            {
-        //                continue;
-        //            }
-        //            if (args.IsSearchStoped)
-        //            {
-        //                yield break;
-        //            }
-        //        }
-        //        yield return fileSystemInfo;
-        //    }
-        //}
-
-
-        protected void OnStart()
+        protected ItemFindedEventArgs<TItemInfo> ProccessItemFinded<TItemInfo>(
+            TItemInfo fileInfo,
+            EventHandler<ItemFindedEventArgs<TItemInfo>> itemFinded,
+            EventHandler<ItemFindedEventArgs<TItemInfo>> filteredItemFinded)
+            where TItemInfo : FileSystemInfo
         {
-            Start?.Invoke(this, new StartEventArgs());
-        }
+            ItemFindedEventArgs<TItemInfo> args = new ItemFindedEventArgs<TItemInfo> { FindedItem = fileInfo };
+            OnEvent(itemFinded, args);
 
-        protected void OnFinish()
-        {
-            Finish?.Invoke(this, new FinishEventArgs());
-        }
-
-        protected TArgs OnItemFinded<TArgs, TItem>(EventHandler<TArgs> onFinded, TArgs args)
-            where TItem: FileSystemInfo
-            where TArgs: ItemFindedEventArgs<TItem>
-        {
-            if (args.FindedItem == null)
+            if (args.IsRemovedFromResults || args.IsSearchStoped)
             {
-                return null;
+                return args;
             }
 
-            onFinded?.Invoke(this, args);
+            if (_filter != null)
+            {
+                if (_filter(fileInfo))
+                {
+                    args = new ItemFindedEventArgs<TItemInfo> { FindedItem = fileInfo };
+                    OnEvent(filteredItemFinded, args);
+                    return args;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
             return args;
+        }
+
+        protected void OnEvent<TArgs>(
+            EventHandler<TArgs> someEvent,
+            TArgs args)
+        {
+            someEvent?.Invoke(this, args);
         }
     }
 }
