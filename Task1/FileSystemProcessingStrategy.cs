@@ -10,14 +10,13 @@ namespace Task1
 {
     public class FileSystemProcessingStrategy : IFileSystemProcessingStrategy
     {
-        public ActionType ProcessItemFinded<TItemInfo, TArgs>(
+        public ActionType ProcessItemFinded<TItemInfo>(
             TItemInfo itemInfo,
             Func<FileSystemInfo, bool> filter,
-            EventHandler<TArgs> itemFinded,
-            EventHandler<TArgs> filteredItemFinded,
-            Action<EventHandler<TArgs>, ItemFindedEventArgs<TItemInfo>> eventEmitter)
+            EventHandler<ItemFindedEventArgs<TItemInfo>> itemFinded,
+            EventHandler<ItemFindedEventArgs<TItemInfo>> filteredItemFinded,
+            Action<EventHandler<ItemFindedEventArgs<TItemInfo>>, ItemFindedEventArgs<TItemInfo>> eventEmitter)
             where TItemInfo : FileSystemInfo
-            where TArgs : ItemFindedEventArgs<TItemInfo>
         {
             ItemFindedEventArgs<TItemInfo> args = new ItemFindedEventArgs<TItemInfo>
             {
