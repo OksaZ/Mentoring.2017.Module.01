@@ -28,96 +28,98 @@ namespace Task1
 
         public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
         {
+            List<FileSystemInfo> fileSystemInfos = new List<FileSystemInfo>();
             OnEvent(Start, new StartEventArgs());
-            foreach (var fileSystemInfo in GetFileSystemInfoSequence(_startDirectory))
-            {
-                yield return fileSystemInfo;
-            }
+            BypassFileSystem(_startDirectory, fileSystemInfos);
             OnEvent(Finish, new FinishEventArgs());
+            return fileSystemInfos;
         }
 
-        private IEnumerable<FileSystemInfo> GetFileSystemInfoSequence(DirectoryInfo directory)
+        private ActionType BypassFileSystem(DirectoryInfo directory, List<FileSystemInfo> resultSequence)
         {
+            ActionType action = ActionType.ContinueSearch;
             foreach (var fileSystemInfo in directory.EnumerateFileSystemInfos())
             {
                 FileInfo file = fileSystemInfo as FileInfo;
                 if (file != null)
                 {
-                    ItemFindedEventArgs<FileInfo> args =
-                        ProccessItemFinded(file, FileFinded, FilteredFileFinded);
-                    if (args == null || args.IsRemovedFromResults)
-                    {
-                        continue;
-                    }
-                    if (args.IsSearchStoped)
-                    {
-                        yield break;
-                    }
-
-                    yield return file;
+                    action = ProcessFile(file, resultSequence);
                 }
 
                 DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
                 if (dir != null)
                 {
-                    ItemFindedEventArgs<DirectoryInfo> args =
-                        ProccessItemFinded(dir, DirectoryFinded, FilteredDirectoryFinded);
-                    if (args == null || args.IsRemovedFromResults)
+                    action = ProcessDirectory(dir, resultSequence);
+                    if (action == ActionType.ContinueSearch)
                     {
-                        continue;
+                        action = BypassFileSystem(dir, resultSequence);
                     }
-                    if (args.IsSearchStoped)
-                    {
-                        yield break;
-                    }
-
-                    yield return dir;
                 }
 
-                if (dir != null)
+                if (action == ActionType.StopSearch)
                 {
-                    foreach (var innerDirectoryFileSystemInfo in GetFileSystemInfoSequence(dir))
-                    {
-                        yield return innerDirectoryFileSystemInfo;
-                    }
+                    return action;
                 }
             }
+
+            return ActionType.ContinueSearch;
         }
 
-        protected ItemFindedEventArgs<TItemInfo> ProccessItemFinded<TItemInfo>(
-            TItemInfo fileInfo,
+        private ActionType ProcessFile(FileInfo file, List<FileSystemInfo> resultSequence)
+        {
+            ActionType action = ProcessItemFinded(file, FileFinded, FilteredFileFinded);
+            if (action == ActionType.ContinueSearch)
+            {
+                resultSequence.Add(file);
+            }
+
+            return action;
+        }
+
+        private ActionType ProcessDirectory(DirectoryInfo directory, List<FileSystemInfo> resultSequence)
+        {
+            ActionType action = ProcessItemFinded(directory, DirectoryFinded, FilteredDirectoryFinded);
+            if (action == ActionType.ContinueSearch)
+            {
+                resultSequence.Add(directory);
+            }
+
+            return action;
+        }
+
+        private ActionType ProcessItemFinded<TItemInfo>(
+            TItemInfo itemInfo,
             EventHandler<ItemFindedEventArgs<TItemInfo>> itemFinded,
             EventHandler<ItemFindedEventArgs<TItemInfo>> filteredItemFinded)
             where TItemInfo : FileSystemInfo
         {
-            ItemFindedEventArgs<TItemInfo> args = new ItemFindedEventArgs<TItemInfo> { FindedItem = fileInfo };
+            ItemFindedEventArgs<TItemInfo> args = new ItemFindedEventArgs<TItemInfo>
+            {
+                FindedItem = itemInfo,
+                ActionType = ActionType.ContinueSearch
+            };
             OnEvent(itemFinded, args);
 
-            if (args.IsRemovedFromResults || args.IsSearchStoped)
+            if (args.ActionType != ActionType.ContinueSearch || _filter == null)
             {
-                return args;
+                return args.ActionType;
             }
 
-            if (_filter != null)
+            if (_filter(itemInfo))
             {
-                if (_filter(fileInfo))
+                args = new ItemFindedEventArgs<TItemInfo>
                 {
-                    args = new ItemFindedEventArgs<TItemInfo> { FindedItem = fileInfo };
-                    OnEvent(filteredItemFinded, args);
-                    return args;
-                }
-                else
-                {
-                    return null;
-                }
+                    FindedItem = itemInfo,
+                    ActionType = ActionType.ContinueSearch
+                };
+                OnEvent(filteredItemFinded, args);
+                return args.ActionType;
             }
 
-            return args;
+            return ActionType.SkipElement;
         }
 
-        protected void OnEvent<TArgs>(
-            EventHandler<TArgs> someEvent,
-            TArgs args)
+        private void OnEvent<TArgs>(EventHandler<TArgs> someEvent, TArgs args)
         {
             someEvent?.Invoke(this, args);
         }

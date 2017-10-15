@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 
 namespace Task1
 {
@@ -8,10 +7,10 @@ namespace Task1
         static void Main(string[] args)
         {
             string startPoint = "D:\\Худ. Книги";
-            var visitor = new FileSystemVisitor(startPoint, (info) => info is DirectoryInfo);
+            var visitor = new FileSystemVisitor(startPoint, (info) => true);
             visitor.Start += (s, e) =>
             {
-                Console.WriteLine("Iteration started");
+                //Console.WriteLine("Iteration started");
             };
 
             visitor.Finish += (s, e) =>
@@ -37,6 +36,8 @@ namespace Task1
             visitor.FilteredDirectoryFinded += (s, e) =>
             {
                 Console.WriteLine("Founded filtered directory: " + e.FindedItem.Name);
+                if (e.FindedItem.Name.Length == 4)
+                    e.ActionType = ActionType.StopSearch;
             };
 
             foreach (var fileSysInfo in visitor.GetFileSystemInfoSequence())
