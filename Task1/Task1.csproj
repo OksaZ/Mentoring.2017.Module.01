@@ -44,8 +44,10 @@
   <ItemGroup>
     <Compile Include="ActionType.cs" />
     <Compile Include="EventArgs\ItemFindedEventArgs.cs" />
+    <Compile Include="FileSystemProcessingStrategy.cs" />
     <Compile Include="FileSystemVisitor.cs" />
     <Compile Include="EventArgs\FinishEventArgs.cs" />
+    <Compile Include="IFileSystemProcessingStrategy.cs" />
     <Compile Include="Mainprg.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="EventArgs\StartEventArgs.cs" />

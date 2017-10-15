@@ -7,10 +7,10 @@ namespace Task1
         static void Main(string[] args)
         {
             string startPoint = "D:\\Худ. Книги";
-            var visitor = new FileSystemVisitor(startPoint, (info) => true);
+            var visitor = new FileSystemVisitor(startPoint, new FileSystemProcessingStrategy(), (info) => true);
             visitor.Start += (s, e) =>
             {
-                //Console.WriteLine("Iteration started");
+                Console.WriteLine("Iteration started");
             };
 
             visitor.Finish += (s, e) =>
@@ -20,12 +20,16 @@ namespace Task1
 
             visitor.FileFinded += (s, e) =>
             {
-                //Console.WriteLine("\tFounded file: " + e.FindedItem.Name);
+                Console.WriteLine("\tFounded file: " + e.FindedItem.Name);
             };
 
             visitor.DirectoryFinded += (s, e) =>
             {
-                //Console.WriteLine("\tFounded directory: " + e.Directory.Name);
+                Console.WriteLine("\tFounded directory: " + e.FindedItem.Name);
+                if (e.FindedItem.Name.Length == 4)
+                {
+                    e.ActionType = ActionType.StopSearch;
+                }
             };
 
             visitor.FilteredFileFinded += (s, e) =>

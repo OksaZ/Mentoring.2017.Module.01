@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Task1.EventArgs;
@@ -9,14 +10,20 @@ namespace Task1
     {
         private readonly DirectoryInfo _startDirectory;
         private readonly Func<FileSystemInfo, bool> _filter;
+        private readonly IFileSystemProcessingStrategy _fileSystemProcessingStrategy;
 
-        public FileSystemVisitor(string path, Func<FileSystemInfo, bool> filter = null)
-            : this(new DirectoryInfo(path), filter) { }
+        public FileSystemVisitor(string path,
+            IFileSystemProcessingStrategy fileSystemProcessingStrategy,
+            Func<FileSystemInfo, bool> filter = null)
+            : this(new DirectoryInfo(path), fileSystemProcessingStrategy, filter) { }
 
-        public FileSystemVisitor(DirectoryInfo startDirectory, Func<FileSystemInfo, bool> filter = null)
+        public FileSystemVisitor(DirectoryInfo startDirectory,
+            IFileSystemProcessingStrategy fileSystemProcessingStrategy,
+            Func<FileSystemInfo, bool> filter = null)
         {
             _startDirectory = startDirectory;
             _filter = filter;
+            _fileSystemProcessingStrategy = fileSystemProcessingStrategy;
         }
 
         public event EventHandler<StartEventArgs> Start;
@@ -28,100 +35,70 @@ namespace Task1
 
         public IEnumerable<FileSystemInfo> GetFileSystemInfoSequence()
         {
-            List<FileSystemInfo> fileSystemInfos = new List<FileSystemInfo>();
             OnEvent(Start, new StartEventArgs());
-            BypassFileSystem(_startDirectory, fileSystemInfos);
+            foreach (var fileSystemInfo in BypassFileSystem(_startDirectory, CurrentAction.ContinueSearch))
+            {
+                yield return fileSystemInfo;
+            }
             OnEvent(Finish, new FinishEventArgs());
-            return fileSystemInfos;
         }
 
-        private ActionType BypassFileSystem(DirectoryInfo directory, List<FileSystemInfo> resultSequence)
+        private IEnumerable<FileSystemInfo> BypassFileSystem(DirectoryInfo directory, CurrentAction currentAction)
         {
-            ActionType action = ActionType.ContinueSearch;
             foreach (var fileSystemInfo in directory.EnumerateFileSystemInfos())
             {
                 FileInfo file = fileSystemInfo as FileInfo;
                 if (file != null)
                 {
-                    action = ProcessFile(file, resultSequence);
+                    currentAction.Action = ProcessFile(file);
                 }
 
                 DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
                 if (dir != null)
                 {
-                    action = ProcessDirectory(dir, resultSequence);
-                    if (action == ActionType.ContinueSearch)
+                    currentAction.Action = ProcessDirectory(dir);
+                    if (currentAction.Action == ActionType.ContinueSearch)
                     {
-                        action = BypassFileSystem(dir, resultSequence);
+                        yield return dir;
+                        foreach (var innerInfo in BypassFileSystem(dir, currentAction))
+                        {
+                            yield return innerInfo;
+                        }
+                        continue;
                     }
                 }
 
-                if (action == ActionType.StopSearch)
+                if (currentAction.Action == ActionType.StopSearch)
                 {
-                    return action;
+                    yield break;
                 }
-            }
 
-            return ActionType.ContinueSearch;
+                yield return fileSystemInfo;
+            }
         }
 
-        private ActionType ProcessFile(FileInfo file, List<FileSystemInfo> resultSequence)
+        private ActionType ProcessFile(FileInfo file)
         {
-            ActionType action = ProcessItemFinded(file, FileFinded, FilteredFileFinded);
-            if (action == ActionType.ContinueSearch)
-            {
-                resultSequence.Add(file);
-            }
-
-            return action;
+            return _fileSystemProcessingStrategy
+                .ProcessItemFinded(file, _filter, FileFinded, FilteredFileFinded, OnEvent);
         }
 
-        private ActionType ProcessDirectory(DirectoryInfo directory, List<FileSystemInfo> resultSequence)
+        private ActionType ProcessDirectory(DirectoryInfo directory)
         {
-            ActionType action = ProcessItemFinded(directory, DirectoryFinded, FilteredDirectoryFinded);
-            if (action == ActionType.ContinueSearch)
-            {
-                resultSequence.Add(directory);
-            }
-
-            return action;
-        }
-
-        private ActionType ProcessItemFinded<TItemInfo>(
-            TItemInfo itemInfo,
-            EventHandler<ItemFindedEventArgs<TItemInfo>> itemFinded,
-            EventHandler<ItemFindedEventArgs<TItemInfo>> filteredItemFinded)
-            where TItemInfo : FileSystemInfo
-        {
-            ItemFindedEventArgs<TItemInfo> args = new ItemFindedEventArgs<TItemInfo>
-            {
-                FindedItem = itemInfo,
-                ActionType = ActionType.ContinueSearch
-            };
-            OnEvent(itemFinded, args);
-
-            if (args.ActionType != ActionType.ContinueSearch || _filter == null)
-            {
-                return args.ActionType;
-            }
-
-            if (_filter(itemInfo))
-            {
-                args = new ItemFindedEventArgs<TItemInfo>
-                {
-                    FindedItem = itemInfo,
-                    ActionType = ActionType.ContinueSearch
-                };
-                OnEvent(filteredItemFinded, args);
-                return args.ActionType;
-            }
-
-            return ActionType.SkipElement;
+            return _fileSystemProcessingStrategy
+                .ProcessItemFinded(directory, _filter, DirectoryFinded, FilteredDirectoryFinded, OnEvent);
         }
 
         private void OnEvent<TArgs>(EventHandler<TArgs> someEvent, TArgs args)
         {
             someEvent?.Invoke(this, args);
+        }
+
+        private class CurrentAction
+        {
+            public ActionType Action { get; set; }
+            public static CurrentAction ContinueSearch 
+                => new CurrentAction { Action = ActionType.ContinueSearch };
         }
     }
 }
