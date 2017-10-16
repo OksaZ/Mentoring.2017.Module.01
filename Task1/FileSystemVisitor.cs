@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Task1.EventArgs;
@@ -47,14 +46,12 @@ namespace Task1
         {
             foreach (var fileSystemInfo in directory.EnumerateFileSystemInfos())
             {
-                FileInfo file = fileSystemInfo as FileInfo;
-                if (file != null)
+                if (fileSystemInfo is FileInfo file)
                 {
                     currentAction.Action = ProcessFile(file);
                 }
 
-                DirectoryInfo dir = fileSystemInfo as DirectoryInfo;
-                if (dir != null)
+                if (fileSystemInfo is DirectoryInfo dir)
                 {
                     currentAction.Action = ProcessDirectory(dir);
                     if (currentAction.Action == ActionType.ContinueSearch)
@@ -67,7 +64,7 @@ namespace Task1
                         continue;
                     }
                 }
-
+                
                 if (currentAction.Action == ActionType.StopSearch)
                 {
                     yield break;
